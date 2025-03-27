@@ -1,6 +1,6 @@
-# Ollama Workshop Platform
+# AI Workshop Platform
 
-A collaborative platform for Ollama workshop attendees to create, save, and share prompts, tools, and model files.
+A collaborative platform for workshop attendees to create, save, and share prompts, tools, and model files.
 
 ## Features
 
@@ -59,6 +59,7 @@ The backend API will be available at http://localhost:8000 with Swagger document
 
 For testing purposes, you can use the following credentials:
 
+examples
 - Regular user:
   - Email: user@example.com
   - Password: password
