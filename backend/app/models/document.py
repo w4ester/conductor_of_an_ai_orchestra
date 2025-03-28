@@ -11,7 +11,7 @@ class Document(Base, BaseModel):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)  # Base64 encoded file content
+    content = Column(Text, nullable=False)  # Base64-encoded content
     file_type = Column(String, nullable=False)
     
     # Foreign keys

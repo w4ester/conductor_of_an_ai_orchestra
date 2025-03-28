@@ -2,31 +2,70 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { promptsStore } from '../lib/store';
+  import type { Prompt } from '../lib/api';
   
   // State
   let loading = true;
   let error = '';
+  let prompts: Prompt[] = [];
+  let totalPrompts = 0;
+  let currentPage = 0;
+  let pageSize = 10;
   
   // Categories for filtering
   const categories = ['All', 'General', 'Coding', 'Research', 'Creative', 'Education', 'Business'];
   let selectedCategory = 'All';
   
   // Filtered prompts
-  $: filteredPrompts = selectedCategory === 'All' 
-    ? $promptsStore 
-    : $promptsStore.filter(prompt => prompt.category === selectedCategory);
+  $: filteredCategory = selectedCategory === 'All' ? undefined : selectedCategory;
   
-  // Load prompts
-  onMount(async () => {
+  // Load prompts with filtering and pagination
+  async function loadPrompts() {
+    loading = true;
+    error = '';
+    
     try {
-      const prompts = await api.getPrompts();
+      const response = await api.getPrompts(currentPage, pageSize, filteredCategory);
+      prompts = response.items;
+      totalPrompts = response.total;
       promptsStore.set(prompts);
     } catch (err) {
       console.error('Failed to load prompts:', err);
-      error = 'Failed to load prompts. Please try again.';
+      error = `Failed to load prompts: ${err.message}`;
     } finally {
       loading = false;
     }
+  }
+  
+  // When category or page changes, reload prompts
+  $: {
+    if (selectedCategory !== undefined) {
+      currentPage = 0; // Reset to first page when changing category
+      loadPrompts();
+    }
+  }
+  
+  // Calculate total pages
+  $: totalPages = Math.ceil(totalPrompts / pageSize);
+  
+  // Page navigation
+  function nextPage() {
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+      loadPrompts();
+    }
+  }
+  
+  function prevPage() {
+    if (currentPage > 0) {
+      currentPage--;
+      loadPrompts();
+    }
+  }
+  
+  // Initial load
+  onMount(() => {
+    loadPrompts();
   });
   
   // Delete prompt
@@ -38,8 +77,8 @@
     try {
       await api.deletePrompt(id);
       
-      // Update store by removing the deleted prompt
-      promptsStore.update(prompts => prompts.filter(prompt => prompt.id !== id));
+      // Reload prompts after deletion
+      loadPrompts();
     } catch (err) {
       console.error('Failed to delete prompt:', err);
       error = `Failed to delete prompt: ${err.message}`;
@@ -47,7 +86,7 @@
   }
   
   // Format date
-  function formatDate(dateString) {
+  function formatDate(dateString: string | undefined): string {
     if (!dateString) return "Unknown date";
     
     const date = new Date(dateString);
@@ -96,7 +135,7 @@
     <div style="display: flex; justify-content: center; padding: 2rem;">
       <p>Loading prompts...</p>
     </div>
-  {:else if filteredPrompts.length === 0}
+  {:else if prompts.length === 0}
     <div style="background-color: white; padding: 2rem; text-align: center; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
       <p style="color: #6b7280;">No prompts found in this category.</p>
       <a href="#/prompts/create" style="display: inline-block; margin-top: 1rem; background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.25rem; font-size: 0.875rem; text-decoration: none;">
@@ -105,7 +144,7 @@
     </div>
   {:else}
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-      {#each filteredPrompts as prompt}
+      {#each prompts as prompt}
         <div style="background-color: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
             <h2 style="font-size: 1.125rem; font-weight: 500;">{prompt.title}</h2>
@@ -152,5 +191,30 @@
         </div>
       {/each}
     </div>
+    
+    <!-- Pagination controls -->
+    {#if totalPages > 1}
+      <div style="display: flex; justify-content: center; margin-top: 1.5rem; gap: 0.5rem;">
+        <button 
+          on:click={prevPage} 
+          disabled={currentPage === 0}
+          style="padding: 0.5rem 1rem; border: 1px solid #d1d5db; border-radius: 0.25rem; ${currentPage === 0 ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}"
+        >
+          Previous
+        </button>
+        
+        <span style="padding: 0.5rem 1rem; background-color: #f3f4f6; border-radius: 0.25rem;">
+          Page {currentPage + 1} of {totalPages}
+        </span>
+        
+        <button 
+          on:click={nextPage} 
+          disabled={currentPage >= totalPages - 1}
+          style="padding: 0.5rem 1rem; border: 1px solid #d1d5db; border-radius: 0.25rem; ${currentPage >= totalPages - 1 ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}"
+        >
+          Next
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>

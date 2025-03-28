@@ -1,100 +1,182 @@
-# AI Workshop Platform
+# Ollama Workshop Platform
 
-A collaborative platform for workshop attendees to create, save, and share prompts, tools, and model files.
+A collaborative platform for workshops centered around Ollama, a local LLM runner. This platform provides a structured interface for working with Ollama models, prompts, tools, documents, and RAG systems.
 
 ## Features
 
-- User authentication and invitation system
-- Model management (view, create, test)
-- Prompt management (create, save, share)
-- Tool integration (Python functions)
-- RAG system with document management
-- Community features for sharing and collaboration
+- **Model Management**: List, create, edit, and test Ollama models
+- **Prompt Creation**: Organize and test prompts with different models
+- **Tool Integration**: Create Python functions to extend LLM capabilities
+- **Document Management**: Upload and process documents for RAG
+- **Vector Database Configuration**: Set up and manage vector databases
+- **Embedding Creation**: Create and manage embeddings for semantic search
+- **RAG Systems**: Build complete retrieval-augmented generation pipelines
 
-## Prerequisites
+## Technology Stack
 
-- Node.js 16+ and npm
-- Python 3.9+
-- Ollama installed and running locally
+- **Backend**: Python FastAPI with SQLAlchemy
+- **Frontend**: Svelte with TypeScript
+- **Database**: SQLite (default), PostgreSQL (optional)
+- **Containerization**: Docker and Docker Compose
 
-## Quick Start
+## Getting Started
 
-### Setup Frontend
+### Prerequisites
 
-```bash
-# Navigate to frontend directory
-cd frontend
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- [Ollama](https://ollama.ai/download) installed locally
 
-# Install dependencies
-npm install
+### Quick Start with Docker
 
-# Run development server
-npm run dev
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/ollama-workshop-platform.git
+   cd ollama-workshop-platform
+   ```
+
+2. Create a `.env` file from the template:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Start the application with Docker Compose:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Access the application:
+   - Frontend: http://localhost:8080
+   - API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+
+### Development Setup
+
+#### Backend (FastAPI)
+
+1. Create a Python virtual environment:
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run database migrations:
+   ```bash
+   alembic upgrade head
+   ```
+
+4. Start the development server:
+   ```bash
+   python run.py
+   ```
+
+#### Frontend (Svelte)
+
+1. Install dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Project Structure
+
+### Backend Structure
+
+```
+backend/
+├── alembic/              # Database migration scripts
+├── app/
+│   ├── api/              # API endpoints
+│   │   ├── dependencies/ # API dependencies
+│   │   └── v1/           # API v1 routes
+│   ├── core/             # Core functionality
+│   ├── db/               # Database setup
+│   ├── middleware/       # Middleware components
+│   ├── models/           # SQLAlchemy models
+│   ├── schemas/          # Pydantic schemas
+│   ├── services/         # Business logic
+│   └── utils/            # Utility functions
+├── main.py               # Application entry point
+└── requirements.txt      # Python dependencies
 ```
 
-The frontend will be available at http://localhost:5173
+### Frontend Structure
 
-### Setup Backend
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Create a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+frontend/
+├── public/               # Static files
+└── src/
+    ├── components/       # Reusable components
+    ├── lib/              # Utilities and API client
+    └── pages/            # Application pages
 ```
 
-The backend API will be available at http://localhost:8000 with Swagger documentation at http://localhost:8000/docs
+## Database Setup
 
-## Development
+The application uses SQLite by default, but you can configure PostgreSQL:
 
-### Default Credentials
+1. Update the `DATABASE_URL` in the `.env` file:
+   ```
+   DATABASE_URL=postgresql://username:password@localhost:5432/dbname
+   ```
 
-For testing purposes, you can use the following credentials:
+2. Run migrations:
+   ```bash
+   cd backend
+   alembic upgrade head
+   ```
 
-examples
-- Regular user:
-  - Email: user@example.com
-  - Password: password
+## Default Users
 
-- Admin user:
+After setup, the following default users are available:
+
+- **Admin User**:
   - Email: admin@example.com
   - Password: admin
 
-### Project Structure
+- **Regular User**:
+  - Email: user@example.com
+  - Password: password
 
-```
-ollama-workshop-platform/
-├── frontend/                 # Svelte + Vite frontend
-│   ├── src/
-│   │   ├── components/       # Reusable UI components
-│   │   ├── pages/            # Page components
-│   │   └── ...
-│   └── ...
-├── backend/                  # Python FastAPI backend
-│   ├── app/
-│   │   ├── api/              # API endpoints
-│   │   ├── core/             # Core functionality
-│   │   ├── models/           # Data models
-│   │   └── ...
-│   └── ...
-└── ...
-```
+## API Documentation
+
+When the application is running, you can access the Swagger documentation at:
+
+- http://localhost:8000/docs
+- http://localhost:8000/redoc
+
+## Health Checks
+
+The application provides health check endpoints:
+
+- Basic health check: http://localhost:8000/api/health
+- Detailed health check: http://localhost:8000/api/health/detailed
+- Public health check (no auth): http://localhost:8000/api/public/health
+
+## Production Deployment
+
+For production deployment, please ensure:
+
+1. Set a secure `SECRET_KEY` in the `.env` file
+2. Configure proper database credentials
+3. Use HTTPS for all traffic
+4. Adjust CORS settings for production domains
+5. Set up appropriate resource limits in Docker Compose
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Test your changes
-4. Submit a pull request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT
+[MIT License](LICENSE)

@@ -5,45 +5,58 @@
   
   const dispatch = createEventDispatcher();
   
-  let email = '';
+  let username = '';
   let password = '';
   let rememberMe = false;
   let errorMessage = '';
   let loading = false;
   
   async function login() {
-    // For demo, always login successfully
+    if (!username || !password) {
+      errorMessage = 'Please enter both username and password.';
+      return;
+    }
+    
     loading = true;
+    errorMessage = '';
     
     try {
-      // Skip actual API call and simulate a successful login
-      setTimeout(() => {
-        // Create a mock user
-        const user = {
-          email: email || 'demo@example.com',
-          username: email || 'demo',
-          full_name: 'Workshop Admin',
-          is_admin: true
-        };
-        
-        // Update the auth store directly
-        authStore.update(state => ({
-          ...state,
-          isAuthenticated: true,
-          user,
-          error: null
-        }));
-        
-        // Dispatch a login event that the parent component can listen for
-        dispatch('login', { user });
-        
-        loading = false;
-      }, 500); // Small delay to simulate API call
+      // Make the actual API call
+      const user = await api.login({
+        username,
+        password
+      });
+      
+      // Update the auth store
+      authStore.update(state => ({
+        ...state,
+        isAuthenticated: true,
+        user,
+        error: null
+      }));
+      
+      // Dispatch a login event that the parent component can listen for
+      dispatch('login', { user });
+      
     } catch (error) {
-      errorMessage = 'Login failed. Please check your credentials.';
       console.error('Login error:', error);
+      errorMessage = error.message || 'Login failed. Please check your credentials.';
+    } finally {
       loading = false;
     }
+  }
+  
+  // For development/demo purposes, provide quick login options
+  function loginAsAdmin() {
+    username = 'admin';
+    password = 'admin';
+    login();
+  }
+  
+  function loginAsUser() {
+    username = 'workshopuser';
+    password = 'password';
+    login();
   }
 </script>
 
@@ -67,13 +80,13 @@
     
     <form on:submit|preventDefault={login} class="login-form">
       <div class="form-group">
-        <label for="email" class="form-label">Email</label>
+        <label for="username" class="form-label">Username</label>
         <input 
-          type="email" 
-          id="email" 
-          bind:value={email}
+          type="text" 
+          id="username" 
+          bind:value={username}
           class="form-input"
-          placeholder="your@email.com"
+          placeholder="Username"
           autocomplete="username"
         />
       </div>
@@ -119,21 +132,24 @@
     </form>
     
     <div class="separator">
-      <span>Or continue with</span>
+      <span>Quick login options</span>
     </div>
     
     <div class="alt-login-buttons">
-      <button class="alt-login-btn workshop-btn">
-        <span>Workshop Login</span>
+      <button class="alt-login-btn workshop-btn" on:click={loginAsAdmin}>
+        <span>Admin</span>
       </button>
-      <button class="alt-login-btn guest-btn">
-        <span>Guest Access</span>
+      <button class="alt-login-btn guest-btn" on:click={loginAsUser}>
+        <span>Workshop User</span>
       </button>
     </div>
     
     <p class="signup-link">
-      Need an invitation? 
-      <a href="#">Contact the workshop admin</a>
+      Default credentials: 
+      <br>
+      Admin: admin / admin
+      <br>
+      User: workshopuser / password
     </p>
   </div>
 </div>

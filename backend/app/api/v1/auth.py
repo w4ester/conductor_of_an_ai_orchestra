@@ -63,8 +63,8 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Check if user is active (approved)
-    if not user.is_active or user.approval_status != "approved":
+    # Check if user exists and is not disabled
+    if not user or user.disabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is not active or pending approval"
@@ -112,9 +112,9 @@ async def refresh_token(
     except JWTError:
         raise credentials_exception
     
-    # Check if user exists and is active
+    # Check if user exists and is not disabled
     user = db.query(User).filter(User.id == user_id).first()
-    if user is None or not user.is_active:
+    if user is None or user.disabled:
         raise credentials_exception
     
     # Create new access token

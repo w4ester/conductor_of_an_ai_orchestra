@@ -22,3 +22,4 @@ class User(Base, BaseModel):
     tools = relationship("Tool", back_populates="creator", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="creator", cascade="all, delete-orphan")
     rag_systems = relationship("RAGSystem", back_populates="creator", cascade="all, delete-orphan")
+    embeddings = relationship("Embedding", back_populates="creator", cascade="all, delete-orphan")

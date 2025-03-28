@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
-  import { promptsStore, modelsStore } from '../lib/store';
+  import { promptsStore } from '../lib/store';
   import type { Prompt } from '../lib/api';
   
   // Props
@@ -18,6 +18,7 @@
   let error = '';
   let success = '';
   let availableModels = [];
+  let loadingModels = true;
   
   // Example prompt templates
   const templates = {
@@ -44,19 +45,43 @@ Generate a [style] piece about [topic] that is creative, engaging, and follows t
   // Initialize categories
   const categories = ['General', 'Coding', 'Research', 'Creative', 'Education', 'Business'];
   
+  // Load models directly from Ollama
+  async function loadModels() {
+    loadingModels = true;
+    try {
+      // Try direct connection to Ollama API first
+      try {
+        const response = await fetch('http://localhost:11434/api/tags');
+        if (response.ok) {
+          const data = await response.json();
+          availableModels = data.models ? data.models.map(model => model.name) : [];
+          console.log('Loaded models from Ollama directly:', availableModels);
+          loadingModels = false;
+          return;
+        }
+      } catch (directError) {
+        console.error('Could not connect directly to Ollama API:', directError);
+      }
+      
+      // Fall back to our API
+      const models = await api.getModels();
+      console.log('Loaded models from our API:', models);
+      availableModels = models.map(model => model.name);
+    } catch (err) {
+      console.error('Failed to load models:', err);
+      error = `Failed to load models: ${err.message}`;
+      // Use some default models as fallback
+      availableModels = ['llama3', 'mistral', 'phi3', 'gemma'];
+    } finally {
+      loadingModels = false;
+    }
+  }
+  
   // Load prompt data if in edit mode
   onMount(async () => {
     try {
-      // Connect directly to Ollama to get actual models
-      const response = await fetch('http://localhost:11434/api/tags');
-      
-      if (response.ok) {
-        const data = await response.json();
-        availableModels = data.models ? data.models.map(model => model.name) : [];
-      } else {
-        console.error('Failed to get models from Ollama:', await response.text());
-        error = 'Failed to load models from Ollama';
-      }
+      // Load models first
+      await loadModels();
       
       if (isEdit && promptId) {
         // Load prompt data
@@ -77,7 +102,7 @@ Generate a [style] piece about [topic] that is creative, engaging, and follows t
       }
     } catch (err) {
       console.error('Failed to initialize prompt editor:', err);
-      error = 'Failed to load data. Please try again.';
+      error = `Failed to load data: ${err.message}`;
     }
   });
   
@@ -95,9 +120,15 @@ Generate a [style] piece about [topic] that is creative, engaging, and follows t
     
     try {
       error = '';
+      success = '';
       
-      // Placeholder for actual testing logic
-      // In a real implementation, this would call the Ollama API to test the prompt
+      // Call the generate API
+      const result = await api.generate({
+        model,
+        prompt: content,
+        system: true
+      });
+      
       success = `Prompt tested with ${model} successfully`;
     } catch (err) {
       console.error('Failed to test prompt:', err);
@@ -153,7 +184,7 @@ Generate a [style] piece about [topic] that is creative, engaging, and follows t
       
       // Refresh prompts list
       const prompts = await api.getPrompts();
-      promptsStore.set(prompts);
+      promptsStore.set(prompts.items);
       
       success = `Prompt "${title}" has been ${isEdit ? 'updated' : 'created'} successfully`;
       
@@ -254,14 +285,17 @@ Generate a [style] piece about [topic] that is creative, engaging, and follows t
           <label for="model" style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem;">
             Select Model
           </label>
-          {#if availableModels.length === 0}
+          {#if loadingModels}
             <div style="color: #6b7280; font-size: 0.875rem;">Loading models...</div>
+          {:else if availableModels.length === 0}
+            <div style="color: #ef4444; font-size: 0.875rem;">No models available. Start Ollama service or add models.</div>
           {:else}
             <select
               id="model"
               bind:value={model}
               style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);"
             >
+              <option value="">Select a model</option>
               {#each availableModels as modelOption}
                 <option value={modelOption}>{modelOption}</option>
               {/each}

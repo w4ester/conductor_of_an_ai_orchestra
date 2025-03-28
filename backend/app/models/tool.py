@@ -11,9 +11,9 @@ class Tool(Base, BaseModel):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     name = Column(String, nullable=False)
-    description = Column(Text, nullable=False)
+    description = Column(String, nullable=True)
     code = Column(Text, nullable=False)
-    language = Column(String, default="python", nullable=False)
+    language = Column(String, default="python")
     
     # Foreign keys
     creator_id = Column(String, ForeignKey("users.id"), nullable=False)
