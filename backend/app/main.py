@@ -173,7 +173,7 @@ OLLAMA_API_URL = "http://localhost:11434/api"
 @app.get("/api/models", response_model=List[Dict])
 async def list_models(current_user: User = Depends(get_current_active_user)):
     try:
-        response = requests.get(f"{OLLAMA_API_URL}/tags")
+        response = requests.get(f"{OLLAMA_API_URL}/tags", timeout=60)
         response.raise_for_status()
         return response.json().get("models", [])
     except requests.RequestException as e:
@@ -198,8 +198,8 @@ async def create_model(
             json={
                 "name": name,
                 "modelfile": modelfile
-            }
-        )
+            }, 
+        timeout=60)
         response.raise_for_status()
         return {"success": True, "message": f"Model {name} created successfully"}
     except requests.RequestException as e:
@@ -214,8 +214,8 @@ async def get_modelfile(
         # Get the Modelfile for a model
         response = requests.post(
             f"{OLLAMA_API_URL}/show", 
-            json={"name": name}
-        )
+            json={"name": name}, 
+        timeout=60)
         response.raise_for_status()
         data = response.json()
         
@@ -233,8 +233,8 @@ async def delete_model(
         # Delete the model
         response = requests.delete(
             f"{OLLAMA_API_URL}/delete", 
-            json={"name": name}
-        )
+            json={"name": name}, 
+        timeout=60)
         response.raise_for_status()
         return {"success": True, "message": f"Model {name} deleted successfully"}
     except requests.RequestException as e:
@@ -246,7 +246,7 @@ async def generate(
     current_user: User = Depends(get_current_active_user)
 ):
     try:
-        response = requests.post(f"{OLLAMA_API_URL}/generate", json=request)
+        response = requests.post(f"{OLLAMA_API_URL}/generate", json=request, timeout=60)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
@@ -258,7 +258,7 @@ async def get_embeddings(
     current_user: User = Depends(get_current_active_user)
 ):
     try:
-        response = requests.post(f"{OLLAMA_API_URL}/embeddings", json=request)
+        response = requests.post(f"{OLLAMA_API_URL}/embeddings", json=request, timeout=60)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
