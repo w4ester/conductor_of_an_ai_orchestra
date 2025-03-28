@@ -7,22 +7,18 @@ from app.models.base import BaseModel
 from app.db.database import Base
 
 class User(Base, BaseModel):
-    """User model for authentication and authorization."""
+    __tablename__ = "users"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    username = Column(String, unique=True, nullable=False, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(
-        Enum('super_admin', 'admin', 'user_pro', 'user_starter', name='user_roles'), 
-        default='user_starter',
-        nullable=False
-    )
-    is_active = Column(Boolean, default=False, nullable=False)
-    approval_status = Column(
-        Enum('pending', 'approved', 'rejected', name='approval_statuses'), 
-        default='pending',
-        nullable=False
-    )
+    disabled = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
     
-    # Relationships will be added later when other models are defined
+    # Relationships will be added as you create the related models
+    prompts = relationship("Prompt", back_populates="creator", cascade="all, delete-orphan")
+    tools = relationship("Tool", back_populates="creator", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="creator", cascade="all, delete-orphan")
+    rag_systems = relationship("RAGSystem", back_populates="creator", cascade="all, delete-orphan")

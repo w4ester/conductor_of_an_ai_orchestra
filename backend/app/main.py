@@ -266,7 +266,7 @@ async def get_embeddings(
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "api_version": "0.1.0"}
 
 # Prompt management endpoints
 @app.get("/api/prompts", response_model=List[Prompt])
