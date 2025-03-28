@@ -1,7 +1,6 @@
 # app/models/prompt.py
-from sqlalchemy import Column, String, Text, ForeignKey
+from sqlalchemy import Column, String, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from uuid import uuid4
 
 from app.models.base import BaseModel
@@ -15,6 +14,8 @@ class Prompt(Base, BaseModel):
     content = Column(Text, nullable=False)
     model = Column(String, nullable=False)
     category = Column(String, nullable=True)
+    
+    # Use JSON for SQLite compatibility
     tags = Column(JSON, nullable=True)  # Store as JSON array
     
     # Foreign keys

@@ -93,8 +93,8 @@
         <li>
           <button 
             on:click={() => navigate(item.path)}
-            class={currentPath === item.path ? 'nav-item active' : 'nav-item'}
-            aria-current={currentPath === item.path ? 'page' : undefined}
+            class={currentPath.startsWith(item.path) ? 'nav-item active' : 'nav-item'}
+            aria-current={currentPath.startsWith(item.path) ? 'page' : undefined}
           >
             <span class="icon">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,7 +102,7 @@
               </svg>
             </span>
             <span class="nav-text">{item.name}</span>
-            {#if currentPath === item.path}
+            {#if currentPath.startsWith(item.path)}
               <span class="active-indicator"></span>
             {/if}
           </button>

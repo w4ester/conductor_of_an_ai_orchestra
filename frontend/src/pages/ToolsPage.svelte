@@ -24,8 +24,9 @@
   // Load tools
   onMount(async () => {
     try {
-      const tools = await api.getTools();
-      toolsStore.set(tools);
+      loading = true;
+      const response = await api.getTools();
+      toolsStore.set(response.items);
     } catch (err) {
       console.error('Failed to load tools:', err);
       error = 'Failed to load tools. Please try again.';
