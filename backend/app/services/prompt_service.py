@@ -66,8 +66,12 @@ async def get_prompt_by_id(db: Session, prompt_id: str, user_id: str) -> Optiona
 
 async def create_prompt(db: Session, prompt_in: PromptCreate, user_id: str) -> Prompt:
     """Create a new prompt."""
-    # Convert tags to JSON if provided
-    tags_json = json.dumps(prompt_in.tags) if prompt_in.tags else None
+    # Make sure tags is a list before converting to JSON
+    # This ensures we're handling the tags field properly
+    tags = prompt_in.tags or []
+    
+    # Convert Python list to JSON string for storage
+    tags_json = json.dumps(tags)
     
     # Create prompt
     db_prompt = Prompt(

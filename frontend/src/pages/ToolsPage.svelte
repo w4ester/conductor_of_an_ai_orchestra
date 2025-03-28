@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate, beforeUpdate, onDestroy } from 'svelte';
   import { api } from '../lib/api';
   import { toolsStore } from '../lib/store';
   
@@ -8,6 +8,7 @@
   let error = '';
   let filterLanguage = 'all';
   let searchTerm = '';
+  let mounted = false;
   
   // Filtered and searched tools
   $: filteredTools = $toolsStore
@@ -21,18 +22,56 @@
       );
     });
   
-  // Load tools
-  onMount(async () => {
+  // Function to load tools data
+  async function loadTools() {
+    console.log("Loading tools data...");
     try {
       loading = true;
       const response = await api.getTools();
-      toolsStore.set(response.items);
+      
+      // Remove duplicate tools by using unique IDs
+      const uniqueTools = [];
+      const seenIds = new Set();
+      
+      if (Array.isArray(response.items)) {
+        response.items.forEach(tool => {
+          if (tool.id && !seenIds.has(tool.id)) {
+            seenIds.add(tool.id);
+            uniqueTools.push(tool);
+          }
+        });
+      }
+      
+      console.log("Tools loaded:", uniqueTools.length);
+      toolsStore.set(uniqueTools);
     } catch (err) {
       console.error('Failed to load tools:', err);
       error = 'Failed to load tools. Please try again.';
     } finally {
       loading = false;
     }
+  }
+  
+  // Force reload on each component mount
+  beforeUpdate(() => {
+    if (!mounted) {
+      console.log("ToolsPage is being created");
+      // Reset store when component is created (not on every update)
+      toolsStore.set([]);
+    }
+  });
+  
+  onMount(() => {
+    console.log("ToolsPage mounted");
+    mounted = true;
+    
+    // Load tools immediately when component mounts
+    loadTools();
+    
+    return () => {
+      console.log("ToolsPage unmounted");
+      mounted = false;
+    };
   });
   
   // Delete tool
@@ -45,7 +84,14 @@
       await api.deleteTool(id);
       
       // Update store by removing the deleted tool
-      toolsStore.update(tools => tools.filter(tool => tool.id !== id));
+      // Ensure tools is an array before filtering
+      toolsStore.update(tools => {
+        if (!Array.isArray(tools)) {
+          console.error('Tools store is not an array:', tools);
+          return [];
+        }
+        return tools.filter(tool => tool.id !== id);
+      });
     } catch (err) {
       console.error('Failed to delete tool:', err);
       error = `Failed to delete tool: ${err.message}`;
@@ -92,6 +138,12 @@
   {#if error}
     <div style="background-color: #fee2e2; border: 1px solid #f87171; color: #b91c1c; padding: 0.75rem 1rem; border-radius: 0.25rem; margin-bottom: 1rem;" role="alert">
       <span>{error}</span>
+      <button 
+        on:click={loadTools}
+        style="margin-left: 1rem; background: none; border: none; text-decoration: underline; color: #b91c1c; cursor: pointer;"
+      >
+        Retry
+      </button>
     </div>
   {/if}
   
@@ -122,7 +174,10 @@
   <!-- Tools Grid -->
   {#if loading}
     <div style="display: flex; justify-content: center; padding: 2rem;">
-      <p>Loading tools...</p>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <div style="width: 2rem; height: 2rem; border: 3px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+        <p>Loading tools...</p>
+      </div>
     </div>
   {:else if filteredTools.length === 0}
     <div style="background-color: white; padding: 2rem; text-align: center; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
@@ -201,3 +256,9 @@
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>

@@ -52,22 +52,39 @@
     return '/' + path;
   }
   
+  function getBasePath(path) {
+    // Extract the base route without ID parameters
+    const parts = cleanPath(path).split('/');
+    
+    // Handle edit routes with IDs
+    if (parts.length >= 3 && parts[2] === 'edit' && parts.length > 3) {
+      return '/' + parts[1] + '/' + parts[2];
+    }
+    
+    // Handle normal routes with up to 2 segments
+    if (parts.length <= 3) {
+      return cleanPath(path);
+    }
+    
+    return '/' + parts[1] + '/' + parts[2];
+  }
+  
   const routes = {
     '/': { component: Dashboard },
     '/models': { component: ModelEditor, props: { isEdit: false } }, // Direct to model creation
     '/models/create': { component: ModelEditor, props: { isEdit: false } },
-    '/models/edit': { component: ModelEditor, props: { isEdit: true, modelName: modelToEdit } },
+    '/models/edit': { component: ModelEditor, props: { isEdit: true } },
     '/prompts': { component: PromptsPage },
     '/prompts/create': { component: PromptEditor, props: { isEdit: false } },
-    '/prompts/edit': { component: PromptEditor, props: { isEdit: true, promptId: promptToEdit } },
+    '/prompts/edit': { component: PromptEditor, props: { isEdit: true } },
     '/tools': { component: ToolsPage },
     '/tools/create': { component: ToolEditor, props: { isEdit: false } },
-    '/tools/edit': { component: ToolEditor, props: { isEdit: true, toolId: toolToEdit } },
+    '/tools/edit': { component: ToolEditor, props: { isEdit: true } },
     '/documents': { component: DocumentsPage },
     '/documents/upload': { component: DocumentUpload },
     '/vector-dbs': { component: VectorDbsPage },
     '/vector-dbs/create': { component: VectorDbConfig, props: { isEdit: false } },
-    '/vector-dbs/edit': { component: VectorDbConfig, props: { isEdit: true, dbId: vectorDbToEdit } },
+    '/vector-dbs/edit': { component: VectorDbConfig, props: { isEdit: true } },
     '/embeddings': { component: EmbeddingsPage },
     '/embeddings/create': { component: CreateEmbedding },
     '/chat': { component: ChatPage }, // Chat page
@@ -95,6 +112,14 @@
     } catch (error) {
       console.error('Failed to load models:', error);
     }
+  }
+  
+  // Extract ID from path for edit routes
+  function getIdFromPath(path, routePrefix) {
+    if (path.startsWith(routePrefix)) {
+      return path.substring(routePrefix.length);
+    }
+    return '';
   }
   
   // Check if user is already logged in
@@ -141,6 +166,15 @@
   // Subscribe to auth store
   $: isAuthenticated = $authStore.isAuthenticated;
   $: user = $authStore.user;
+  
+  // Get the base path for component selection
+  $: basePath = getBasePath(currentPath);
+  
+  // Extract IDs from the current path for edit routes
+  $: modelId = currentPath.startsWith('/models/edit/') ? getIdFromPath(currentPath, '/models/edit/') : '';
+  $: promptId = currentPath.startsWith('/prompts/edit/') ? getIdFromPath(currentPath, '/prompts/edit/') : '';
+  $: toolId = currentPath.startsWith('/tools/edit/') ? getIdFromPath(currentPath, '/tools/edit/') : '';
+  $: dbId = currentPath.startsWith('/vector-dbs/edit/') ? getIdFromPath(currentPath, '/vector-dbs/edit/') : '';
 </script>
 
 {#if loading}
@@ -150,14 +184,14 @@
   </div>
 {:else if isAuthenticated}
   <Layout bind:currentPath on:logout={() => isAuthenticated = false}>
-    {#if pages[cleanPath(currentPath)]}
+    {#if pages[basePath]}
       <svelte:component 
-        this={pages[cleanPath(currentPath)]} 
-        {...(routes[cleanPath(currentPath)]?.props || {})}
-        modelName={currentPath.startsWith('/models/edit/') ? currentPath.replace('/models/edit/', '') : ''}
-        promptId={currentPath.startsWith('/prompts/edit/') ? currentPath.replace('/prompts/edit/', '') : ''}
-        toolId={currentPath.startsWith('/tools/edit/') ? currentPath.replace('/tools/edit/', '') : ''}
-        dbId={currentPath.startsWith('/vector-dbs/edit/') ? currentPath.replace('/vector-dbs/edit/', '') : ''}
+        this={pages[basePath]} 
+        {...(routes[basePath]?.props || {})}
+        modelName={modelId}
+        promptId={promptId}
+        toolId={toolId}
+        dbId={dbId}
       />
     {:else}
       <div class="not-found">

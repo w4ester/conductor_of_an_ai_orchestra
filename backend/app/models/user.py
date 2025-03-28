@@ -23,3 +23,8 @@ class User(Base, BaseModel):
     documents = relationship("Document", back_populates="creator", cascade="all, delete-orphan")
     rag_systems = relationship("RAGSystem", back_populates="creator", cascade="all, delete-orphan")
     embeddings = relationship("Embedding", back_populates="creator", cascade="all, delete-orphan")
+    
+    # Property for backward compatibility with is_active
+    @property
+    def is_active(self):
+        return not self.disabled
