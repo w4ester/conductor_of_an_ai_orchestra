@@ -17,6 +17,7 @@
   import EmbeddingsPage from './pages/EmbeddingsPage.svelte';
   import CreateEmbedding from './pages/CreateEmbedding.svelte';
   import ChatPage from './pages/ChatPage.svelte';
+  import DocumentEditor from './pages/DocumentEditor.svelte';
   import { authStore, modelsStore, promptsStore, toolsStore, documentsStore,
            vectorDbsStore, embeddingsStore, embeddingModelsStore } from './lib/store';
   import { api } from './lib/api';
@@ -82,6 +83,9 @@
     '/tools/edit': { component: ToolEditor, props: { isEdit: true } },
     '/documents': { component: DocumentsPage },
     '/documents/upload': { component: DocumentUpload },
+    '/documents/create': { component: DocumentEditor, props: { isEdit: false } },
+    '/documents/edit': { component: DocumentEditor, props: { isEdit: true } },
+    '/documents/view': { component: DocumentEditor, props: { isEdit: true, readOnly: true } }, // For view, we'll use DocumentEditor in read-only mode
     '/vector-dbs': { component: VectorDbsPage },
     '/vector-dbs/create': { component: VectorDbConfig, props: { isEdit: false } },
     '/vector-dbs/edit': { component: VectorDbConfig, props: { isEdit: true } },
@@ -175,6 +179,8 @@
   $: promptId = currentPath.startsWith('/prompts/edit/') ? getIdFromPath(currentPath, '/prompts/edit/') : '';
   $: toolId = currentPath.startsWith('/tools/edit/') ? getIdFromPath(currentPath, '/tools/edit/') : '';
   $: dbId = currentPath.startsWith('/vector-dbs/edit/') ? getIdFromPath(currentPath, '/vector-dbs/edit/') : '';
+  $: documentId = currentPath.startsWith('/documents/edit/') ? getIdFromPath(currentPath, '/documents/edit/') : 
+                 currentPath.startsWith('/documents/view/') ? getIdFromPath(currentPath, '/documents/view/') : '';
 </script>
 
 {#if loading}
@@ -192,6 +198,8 @@
         promptId={promptId}
         toolId={toolId}
         dbId={dbId}
+        documentId={documentId}
+        readOnly={basePath === '/documents/view'}
       />
     {:else}
       <div class="not-found">

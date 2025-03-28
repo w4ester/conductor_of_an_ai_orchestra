@@ -95,3 +95,32 @@ def test_tool(tool: Tool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         "result": f"Tool '{tool.name}' executed with parameters: {parameters}",
         "execution_time": "0.2s"
     }
+
+
+def get_tools_for_model(db: Session, user_id: str, selected_tools: List[str]) -> List[Tool]:
+    """Get tools by their names that the user has access to."""
+    query = db.query(Tool).filter(Tool.creator_id == user_id)
+    
+    # Filter by selected tool names if provided
+    if selected_tools:
+        query = query.filter(Tool.name.in_(selected_tools))
+    
+    return query.all()
+
+
+def get_available_tools_for_chat(db: Session, user_id: str) -> List[Dict[str, Any]]:
+    """Get all available tools that can be used in chat."""
+    # Get all tools for the user
+    tools = get_tools(db, user_id)[0]
+    
+    # Convert to the format expected by frontend
+    result = [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": {}
+        }
+        for tool in tools
+    ]
+    
+    return result

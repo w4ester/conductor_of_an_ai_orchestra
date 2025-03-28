@@ -31,6 +31,25 @@ async def list_all_tools(
     )
     return {"items": tools, "total": total}
 
+@router.get("/list")
+async def list_available_tools_for_chat(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all available tools that can be used in chat."""
+    # For now, just return a list of tools from the database
+    tools, _ = get_tools(db, user_id=current_user.id)
+    # Convert to format expected by frontend
+    result = [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": {}  # This would need to be parsed from the tool code in a real implementation
+        }
+        for tool in tools
+    ]
+    return result
+
 @router.get("/{tool_id}", response_model=Tool)
 async def get_tool(
     tool_id: str = Path(...),

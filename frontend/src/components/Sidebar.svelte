@@ -93,7 +93,7 @@ function toggleMobileSidebar() {
   class:mobile-open={isMobileSidebarOpen}
 >
   <div class="sidebar-header">
-    <h1>Ollama Workshop</h1>
+    <h1>AI Workshop</h1>
     <!-- Close button - only visible on small screens -->
     <button 
       class="md:hidden close-button"

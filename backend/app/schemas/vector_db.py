@@ -23,6 +23,7 @@ class VectorDBInDB(VectorDBBase):
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 class VectorDB(VectorDBInDB):
     pass

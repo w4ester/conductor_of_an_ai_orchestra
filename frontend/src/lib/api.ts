@@ -65,6 +65,15 @@ export interface Tool {
   updated_at?: string;
 }
 
+export interface ToolExecutionRequest {
+  name: string;
+  arguments: Record<string, any>;
+}
+
+export interface ToolExecutionResponse {
+  result: any;
+}
+
 // Response interfaces with pagination
 export interface ToolResponse {
   items: Tool[];
@@ -182,6 +191,33 @@ export interface TaskStatus {
   started_at?: number;
   completed_at?: number;
   duration?: number;
+}
+
+// Add these interfaces for tool functionality
+export interface ToolSchema {
+  name: string;
+  description: string;
+  input_schema: any;
+}
+
+export interface ToolCall {
+  name: string;
+  arguments: Record<string, any>;
+}
+
+export interface ChatRequest {
+  model: string;
+  prompt: string;
+  system?: string;
+  tools?: boolean;
+  selectedTools?: string[]; // Add this field to specify which tools to use
+  context?: any[];
+}
+
+export interface ChatResponse {
+  response: string;
+  context?: any[];
+  tool_calls?: ToolCall[];
 }
 
 // API client class
@@ -517,7 +553,18 @@ class ApiClient {
       headers: this.getHeaders()
     });
 
-    return this.handleResponse<Document>(response);
+    if (!response.ok) {
+      let errorMsg = "Failed to retrieve document";
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.detail || errorMsg;
+      } catch (e) {
+        // If parsing JSON fails, use default message
+      }
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
   }
   
   // Create a document (manual entry)
@@ -566,12 +613,14 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      let errorMsg = "Failed to delete document";
       try {
         const errorData = await response.json();
-        throw new Error(errorData.detail || `API error: ${response.status}`);
+        errorMsg = errorData.detail || errorMsg;
       } catch (e) {
-        throw new Error(`API error: ${response.status}`);
+        // If parsing JSON fails, use default message
       }
+      throw new Error(errorMsg);
     }
   }
   
@@ -775,6 +824,32 @@ class ApiClient {
     });
 
     return this.handleResponse<any>(response);
+  }
+
+  // Get available tools for chat
+  async getAvailableToolsForChat(): Promise<ToolSchema[]> {
+    const response = await fetch(`${API_URL}/api/v1/tools/list`, {
+      headers: this.getHeaders()
+    });
+
+    return this.handleResponse<ToolSchema[]>(response);
+  }
+  
+  // Generate chat response with tool support
+  async generateWithTools(request: ChatRequest): Promise<Response> {
+    const requestData = {
+      ...request,
+      tools: request.tools !== false, // Default to true if not specified
+      // Only include selectedTools if tools is enabled
+      selectedTools: request.tools !== false ? request.selectedTools || [] : []
+    };
+    
+    // Return the full response object for more flexible handling
+    return fetch(`${API_URL}/api/v1/chat/generate`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(requestData)
+    });
   }
 }
 

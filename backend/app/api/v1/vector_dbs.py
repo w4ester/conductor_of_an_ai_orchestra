@@ -31,6 +31,27 @@ async def list_all_vector_dbs(
     )
     return {"items": vector_dbs, "total": total}
 
+@router.get("/collections", response_model=List[Dict])
+async def get_collections_for_chat(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all collections that can be used for RAG in chat."""
+    dbs, _ = get_vector_dbs(db, user_id=current_user.id, limit=100)
+    
+    # Convert to the format expected by the frontend
+    result = [
+        {
+            "id": db.id,
+            "name": db.name,
+            "type": db.type,
+            "document_count": 0  # In a real implementation, you would query the actual count
+        }
+        for db in dbs
+    ]
+    
+    return result
+
 @router.get("/types", response_model=List[Dict[str, str]])
 async def list_vector_db_types(
     current_user: User = Depends(get_current_active_user)

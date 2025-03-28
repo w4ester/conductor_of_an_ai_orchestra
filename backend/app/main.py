@@ -141,8 +141,59 @@ async def auth_debug(request: Request, db: Session = Depends(get_db)):
 # Include API routers
 app.include_router(api_router)
 
+# Set up basic admin user and default tools on startup
+@app.on_event("startup")
+async def startup():
+    # Create database tables if they don't exist
+    Base.metadata.create_all(bind=engine)
+    
+    # Create a session
+    from app.db.database import SessionLocal
+    db = SessionLocal()
+    
+    try:
+        # Check if users exist, create admin if not
+        from app.models.user import User
+        from app.core.security import get_password_hash
+        from uuid import uuid4
+        
+        admin = db.query(User).filter(User.is_admin == True).first()
+        if not admin:
+            # No admin exists, create one
+            admin = User(
+                id=str(uuid4()),
+                username="admin",
+                email="admin@example.com",
+                hashed_password=get_password_hash("password"),  # Change in production!
+                is_admin=True,
+                disabled=False
+            )
+            db.add(admin)
+            db.commit()
+            print("Created default admin user")
+        
+        # Set up default tools
+        from app.utils.setup_default_tools import setup_default_tools
+        tools = setup_default_tools(db)
+        if tools:
+            print(f"Created {len(tools)} default tools")
+            
+        # Set up default prompts
+        from app.utils.setup_default_prompts import setup_default_prompts
+        prompts = setup_default_prompts(db)
+        if prompts:
+            print(f"Created {len(prompts)} default prompts")
+            
+        # Set up default vector database collections
+        from app.utils.setup_default_collections import setup_default_collections
+        collections = setup_default_collections(db)
+        if collections:
+            print(f"Created {len(collections)} default collections")
+    except Exception as e:
+        print(f"Error during startup: {e}")
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     import uvicorn
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
     uvicorn.run(app, host="0.0.0.0", port=8000)

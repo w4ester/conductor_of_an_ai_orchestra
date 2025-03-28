@@ -1,15 +1,43 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
+  import type { ToolSchema } from '../lib/api';
   import { 
     modelsStore, 
     promptsStore, 
     toolsStore, 
     embeddingsStore, 
+    embeddingModelsStore,
     authStore
   } from '../lib/store';
   import Card from '../components/ui/Card.svelte';
   import { fade, fly } from 'svelte/transition';
+  
+  // API URL from environment
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  // Load prompts directly
+  async function loadPrompts() {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/prompts`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load prompts');
+      }
+      
+      const data = await response.json();
+      promptsStore.set(data.items);
+      console.log('Loaded prompts:', data.items);
+    } catch (err) {
+      console.error('Failed to load prompts:', err);
+      error = `Error loading prompts: ${err.message}`;
+    }
+  }
 
   // Simple markdown formatter (will be replaced by marked when available)
   function simpleMarkdownFormat(text) {
@@ -59,7 +87,16 @@
   $: availableModels = $modelsStore;
   $: availablePrompts = $promptsStore;
   $: availableTools = $toolsStore;
-  $: availableEmbeddings = $embeddingsStore;
+  $: availableEmbeddings = $embeddingModelsStore;
+  
+  // Add state for tools
+  let enableTools = true;
+  let availableTools: ToolSchema[] = [];
+  let loadingTools = false;
+  
+  // Add missing state variables for RAG
+  let selectedCollection = '';
+  let availableCollections = [];
   
   // Initialize with default selections if available
   onMount(async () => {
@@ -117,6 +154,46 @@
           selectedModel = availableModels[0].name;
         }
       }
+      
+      // Load prompts if not already loaded
+      if ($promptsStore.length === 0) {
+        await loadPrompts();
+      }
+      
+      // Load embedding models
+      if ($embeddingModelsStore.length === 0) {
+        await loadEmbeddingModels();
+      }
+      
+      // Load tool preferences
+      if (typeof localStorage !== 'undefined') {
+        const storedEnableTools = localStorage.getItem('enableTools');
+        const storedSelectedTools = localStorage.getItem('selectedTools');
+        
+        if (storedEnableTools) {
+          enableTools = JSON.parse(storedEnableTools);
+        }
+        
+        if (storedSelectedTools) {
+          // We'll restore this after loading available tools
+          const savedSelection = JSON.parse(storedSelectedTools);
+          
+          // Load tools based on the enable setting
+          await loadTools();
+          
+          // Now filter the selection to only include available tools
+          const availableToolNames = availableTools.map(tool => tool.name);
+          selectedTools = savedSelection.filter(name => availableToolNames.includes(name));
+        } else {
+          // Just load tools normally
+          await loadTools();
+        }
+      } else {
+        await loadTools();
+      }
+      
+      // Load collections for RAG
+      await loadCollections();
     } catch (err) {
       console.error("Error initializing chat page:", err);
       error = "Failed to initialize: " + err.message;
@@ -142,6 +219,99 @@
     document.head.appendChild(link);
   }
   
+  // Load tools based on the enable setting
+  async function loadTools() {
+    if (!enableTools) {
+      availableTools = [];
+      return;
+    }
+
+    loadingTools = true;
+    try {
+      // Use direct fetch to ensure we get fresh data
+      const response = await fetch(`${API_URL}/api/v1/tools/list`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
+      }
+      
+      availableTools = await response.json();
+      console.log('Loaded tools for chat:', availableTools);
+      
+      // Save to store for other components
+      toolsStore.set(availableTools);
+      
+      // Initialize selectedTools with all available tools for simplicity
+      // Later this can be user preference or role-based
+      selectedTools = availableTools.map(tool => tool.name);
+    } catch (err) {
+      console.error('Failed to load tools:', err);
+      error = `Error loading tools: ${err.message}`;
+      availableTools = [];
+    } finally {
+      loadingTools = false;
+    }
+  }
+  
+  // Add function to load embedding models
+  async function loadEmbeddingModels() {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/embeddings/models`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load embedding models');
+      }
+      
+      const models = await response.json();
+      embeddingModelsStore.set(models);
+      
+      // Set default if available
+      if (models.length > 0) {
+        selectedEmbedding = models[0].name;
+      }
+    } catch (err) {
+      console.error('Failed to load embedding models:', err);
+      error = `Error loading embedding models: ${err.message}`;
+    }
+  }
+  
+  // Add function to load collections
+  async function loadCollections() {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/vector-dbs/collections`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load collections');
+      }
+      
+      availableCollections = await response.json();
+      
+      // Set default if available
+      if (availableCollections.length > 0) {
+        selectedCollection = availableCollections[0].id;
+      }
+    } catch (err) {
+      console.error('Failed to load collections:', err);
+      error = `Error loading collections: ${err.message}`;
+      availableCollections = [];
+    }
+  }
+  
   // Handle chat submission
   async function sendMessage() {
     if (!userInput.trim() || isLoading) return;
@@ -155,51 +325,83 @@
     isLoading = true;
     
     try {
-      // Convert chat format to generate format
-      let prompt = userMessage.content;
+      // Prepare the request for our backend
+      const toolsEnabled = enableTools && selectedTools.length > 0;
       
-      // Add system prompt if selected
-      if (selectedPrompt) {
-        prompt = `${selectedPrompt}\n\n${prompt}`;
-      }
+      // Format the previous messages for context if any
+      const chatContext = messages.length > 1 ? 
+        messages.slice(0, -1).map(m => ({ 
+          role: m.role, 
+          content: m.content 
+        })) : 
+        [];
       
-      // Add context from previous messages if there are any
-      if (messages.length > 1) {
-        const context = messages
-          .slice(0, -1) // Exclude the last message (we just added it)
-          .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-          .join('\n\n');
-        prompt = `${context}\n\nUser: ${prompt}\n\nAssistant:`;
-      }
-      
-      // Only chat should use Ollama's direct API format
-      const response = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: temperature,
-            num_predict: maxTokens
-          }
-        })
+      const responseObj = await api.generateWithTools({
+        model: selectedModel,
+        prompt: currentInput,
+        system: selectedPrompt,
+        tools: toolsEnabled,
+        // Only pass selected tools to limit what's available
+        selectedTools: toolsEnabled ? selectedTools : [],
+        context: chatContext
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to get response from Ollama');
+      if (!responseObj.ok) {
+        const errorData = await responseObj.json();
+        throw new Error(errorData.detail || 'Failed to get response');
       }
       
-      const data = await response.json();
+      const data = await responseObj.json();
+      
+      // Check if the response contains any tool calls
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        // Handle tool calls in a future implementation
+        console.log('Tool calls detected:', data.tool_calls);
+      }
+      
+      // Add the assistant's response to messages
       messages = [...messages, { role: 'assistant', content: data.response }];
     } catch (err) {
       console.error('Chat error:', err);
       error = `Error: ${err.message || 'Failed to get response'}`;
     } finally {
       isLoading = false;
+    }
+  }
+  
+  // Add a function to store tool preferences in localStorage
+  function saveToolPreferences() {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('enableTools', JSON.stringify(enableTools));
+      localStorage.setItem('selectedTools', JSON.stringify(selectedTools));
+    }
+  }
+  
+  // Watch for changes to tool selections and save preferences
+  $: {
+    if (enableTools !== undefined && selectedTools) {
+      saveToolPreferences();
+    }
+  }
+
+  // Watch for RAG toggle to update tools and automatically select RAG tools
+  $: {
+    if (useRAG !== undefined) {
+      // When RAG is enabled, ensure RAG tools are selected
+      if (useRAG) {
+        // Auto-select RAG tools when RAG is enabled (moves logic from template to script)
+        const ragToolNames = availableTools
+          .filter(tool => tool.name.startsWith('rag_tools'))
+          .map(tool => tool.name);
+          
+        // Add RAG tools to selection (if not already included)
+        selectedTools = [...new Set([...selectedTools, ...ragToolNames])];
+      }
+      
+      // Also load collections when RAG is enabled
+      if (useRAG && availableCollections.length === 0) {
+        loadCollections();
+      }
     }
   }
 </script>
@@ -310,9 +512,41 @@
                   <select class="form-select" bind:value={selectedEmbedding}>
                     <option value="" disabled>Select embedding model</option>
                     {#each availableEmbeddings as embedding}
-                      <option value={embedding.id}>{embedding.name}</option>
+                      <option value={embedding.name}>{embedding.name}</option>
                     {/each}
                   </select>
+                </div>
+              </div>
+            {/if}
+            
+            {#if useRAG}
+              <div class="feature-sub-option" in:fly={{ y: -10, duration: 200 }}>
+                <label class="form-label">Knowledge Source</label>
+                <div class="select-wrapper">
+                  <select class="form-select" bind:value={selectedCollection}>
+                    <option value="" disabled>Select document collection</option>
+                    {#each availableCollections as collection}
+                      <option value={collection.id}>{collection.name} ({collection.document_count} docs)</option>
+                    {/each}
+                  </select>
+                </div>
+                
+                <!-- Add RAG-specific tool selection -->
+                <div class="rag-tools-section">
+                  <label class="form-label">Document Tools</label>
+                  <div class="tools-grid">
+                    {#each availableTools.filter(tool => tool.name.startsWith('rag_tools')) as tool}
+                      <label class="tool-option">
+                        <input 
+                          type="checkbox" 
+                          value={tool.name}
+                          bind:group={selectedTools}
+                        />
+                        <span class="tool-checkbox"></span>
+                        <span class="tool-name">{tool.name.replace('rag_tools.', '')}</span>
+                      </label>
+                    {/each}
+                  </div>
                 </div>
               </div>
             {/if}
@@ -321,29 +555,35 @@
               <div class="toggle-switch">
                 <label for="ai-tools">AI Tools</label>
                 <label class="toggle">
-                  <input type="checkbox" id="ai-tools" bind:checked={useTools} />
+                  <input type="checkbox" id="ai-tools" bind:checked={enableTools} on:change={loadTools} />
                   <span class="slider"></span>
                 </label>
               </div>
               <p class="feature-description">Enable AI to use external tools</p>
             </div>
             
-            {#if useTools}
+            {#if enableTools}
               <div class="feature-sub-option" in:fly={{ y: -10, duration: 200 }}>
                 <label class="form-label">Active Tools</label>
-                <div class="tools-grid">
-                  {#each availableTools as tool}
-                    <label class="tool-option">
-                      <input 
-                        type="checkbox" 
-                        value={tool.id}
-                        bind:group={selectedTools}
-                      />
-                      <span class="tool-checkbox"></span>
-                      <span class="tool-name">{tool.name}</span>
-                    </label>
-                  {/each}
-                </div>
+                {#if loadingTools}
+                  <div class="loading-indicator">Loading available tools...</div>
+                {:else if availableTools.length === 0}
+                  <div class="empty-state">No tools available</div>
+                {:else}
+                  <div class="tools-grid">
+                    {#each availableTools as tool}
+                      <label class="tool-option">
+                        <input 
+                          type="checkbox" 
+                          value={tool.name}
+                          bind:group={selectedTools}
+                        />
+                        <span class="tool-checkbox"></span>
+                        <span class="tool-name">{tool.name}</span>
+                      </label>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>

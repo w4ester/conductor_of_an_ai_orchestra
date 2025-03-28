@@ -128,6 +128,10 @@ async def check_embedding_status(task_id: str) -> Dict[str, Any]:
     task_info = get_task_info(task_id)
     return task_info
 
+async def get_embedding_task_status(task_id: str) -> Dict[str, Any]:
+    """Get the status of an embedding task by its task ID."""
+    return await check_embedding_status(task_id)
+
 async def _process_embedding(
     db_session_factory,
     embedding_id: str,

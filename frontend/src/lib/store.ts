@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { User } from './api';
+import type { User, Document, Tool, Prompt, OllamaModel } from './api';
 
 // Interface for auth state
 interface AuthState {
@@ -30,7 +30,7 @@ export const promptsStore = writable<any[]>([]);
 export const toolsStore = writable<any[]>([]);
 
 // Documents store
-export const documentsStore = writable<any[]>([]);
+export const documentsStore = writable<Document[]>([]);
 
 // RAG systems store
 export const ragSystemsStore = writable<any[]>([]);
