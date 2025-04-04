@@ -1,9 +1,9 @@
 import time
-import requests
 import os
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.db.database import get_db
+from security import safe_requests
 
 # Configuration for Ollama API
 OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api")
@@ -38,7 +38,7 @@ class HealthChecker:
         """Check Ollama API connection."""
         start_time = time.time()
         try:
-            response = requests.get(
+            response = safe_requests.get(
                 f"{OLLAMA_API_URL}/tags", 
                 timeout=5.0
             )

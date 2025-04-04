@@ -1,13 +1,14 @@
 import requests
 from typing import Dict, List, Any
 import os
+from security import safe_requests
 
 # Configuration for Ollama API
 OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api")
 
 def list_models() -> List[Dict]:
     """Get a list of available models from Ollama."""
-    response = requests.get(f"{OLLAMA_API_URL}/tags")
+    response = safe_requests.get(f"{OLLAMA_API_URL}/tags")
     response.raise_for_status()
     return response.json().get("models", [])
 
