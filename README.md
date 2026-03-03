@@ -30,8 +30,8 @@ A collaborative platform for workshops centered around Ollama, a local LLM runne
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ollama-workshop-platform.git
-   cd ollama-workshop-platform
+   git clone https://github.com/w4ester/conductor_of_an_ai_orchestra.git
+   cd conductor_of_an_ai_orchestra
    ```
 
 2. Create a `.env` file from the template:
